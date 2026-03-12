@@ -5,21 +5,37 @@
 #ifndef EDGE_H
 #define EDGE_H
 #include <string>
+#include <nlohmann/json.hpp>
+
 using namespace std;
-
-
+class Vertex;
 class Edge {
+private:
+    string streetName_;
+    double distance_;
+    double speedLimit_;
+    double weight_;
+    Vertex *srcNode_;
+    Vertex* dstNode_;
+
 public:
-    int toNode;
-    string streetName;
-    double distance;
-    double speedLimit;
 
-    double calcWeight() const;
+    [[nodiscard]] double calcWeight() const;
 
-    Edge(int to, double len, double limit, std::string name);
+    Vertex *getNeighbor(const Vertex *from) const;
+
+    Vertex *getSrc() const;
+
+    Vertex *getDst() const;
+
+    [[nodiscard]] string getStreetName() const;
+
+    [[nodiscard]] double getDistance() const;
+
+    [[nodiscard]] double getSpeedLimit() const;
+
+    Edge();
+    Edge(Vertex* src, Vertex* dst, const double len, double limit, string name);
 };
-
-
 
 #endif //EDGE_H

@@ -1,12 +1,11 @@
 //
 // Created by luca eaton on 3/11/26.
 //
-
 #include "Dataset.h"
 #include <iostream>
 #include <string>
 #include <curl/curl.h>
-
+#include <nlohmann/json.hpp>
 /**
  * Sourced from StackOverflow, will allow me to store the JSON data within a string, to further than parse through the data.
  * O(N) Space complexity.
@@ -35,10 +34,9 @@
  *   an error and aborts the transfer.
  */
 size_t Dataset::WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
-    static_cast<string *>(userp)->append(static_cast<char *>(contents), size * nmemb);
+    static_cast<string*>(userp)->append(static_cast<char *>(contents), size * nmemb);
     return size * nmemb;
 }
-
 /**
  * Sends a request to the overpass api to query road data from
  * OSM(OpenStreetMap) near a specified location.
@@ -53,8 +51,7 @@ size_t Dataset::WriteCallback(void* contents, size_t size, size_t nmemb, void* u
  */
 void Dataset::overseeAPI() {
     CURL *curl = curl_easy_init();
-
-    //Raw string query
+    //raw string query
     const string q = R"(
                     [out:json][timeout:25];
                     (
@@ -65,26 +62,23 @@ void Dataset::overseeAPI() {
                     >;
                     out skel qt;
                     )";
-
     //storing the query for us to "point" curl back to it.
     const string data = "data=" + q;
-
     curl_easy_setopt(curl, CURLOPT_URL,  "https://overpass-api.de/api/interpreter"); //set domain
     curl_easy_setopt(curl, CURLOPT_POST, 1L); //GET Request instead POST request
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data.c_str()); //make query, create a c pointer to allow curl to be able to fully reread the query
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, Dataset::WriteCallback); // store json
-
-    string res;
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &res); // stores json in std::string (res);
-
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &jsonData); // stores json in std::string (jsonData);
     curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L); // debug usage
-
     //preform the act request
     curl_easy_perform(curl);
-    //save response to mem
-    jsonData = res;
     //erase any allocated mem we had set to avoid any mem leaks
     curl_easy_cleanup(curl);
-
-    //std::cout << res << std::endl; // test
+    //std::cout << jsonData << std::endl; // testing to see if its saved
 }
+
+//parse data
+// void Dataset::buildGraph() {
+//     using json = nlohmann::json;
+//     auto j = json::parse(jsonData);
+// }
