@@ -26,6 +26,7 @@ Edge::Edge(Vertex* src, Vertex* dst, double len, double limit, string name)
  *
  * @return weight of the edge
  */
+
 double Edge::calcWeight() const {
     const double s = max(speedLimit_, 1.0);
     return distance_ / s;

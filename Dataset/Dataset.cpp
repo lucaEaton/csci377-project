@@ -34,7 +34,7 @@
  *   an error and aborts the transfer.
  */
 size_t Dataset::WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
-    static_cast<string *>(userp)->append(static_cast<char *>(contents), size * nmemb);
+    static_cast<string*>(userp)->append(static_cast<char *>(contents), size * nmemb);
     return size * nmemb;
 }
 /**
@@ -62,17 +62,14 @@ void Dataset::overseeAPI() {
                     >;
                     out skel qt;
                     )";
-
     //storing the query for us to "point" curl back to it.
     const string data = "data=" + q;
-
     curl_easy_setopt(curl, CURLOPT_URL,  "https://overpass-api.de/api/interpreter"); //set domain
     curl_easy_setopt(curl, CURLOPT_POST, 1L); //GET Request instead POST request
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data.c_str()); //make query, create a c pointer to allow curl to be able to fully reread the query
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, Dataset::WriteCallback); // store json
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &jsonData); // stores json in std::string (jsonData);
     curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L); // debug usage
-
     //preform the act request
     curl_easy_perform(curl);
     //erase any allocated mem we had set to avoid any mem leaks

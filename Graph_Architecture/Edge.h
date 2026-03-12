@@ -38,6 +38,4 @@ public:
     Edge(Vertex* src, Vertex* dst, const double len, double limit, string name);
 };
 
-
-
 #endif //EDGE_H
