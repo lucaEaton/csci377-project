@@ -93,12 +93,18 @@ double haversine(const double lat1d, const double lon1d, const double lat2d, con
                std::pow(std::sin(dlon / 2), 2);
     return 2 * r * std::asin(std::sqrt(a));
 }
-// parse data
+/**
+  * parsing through data whilist constructing the graph object
+  *
+  * Time Complex : O(N+E) - N = total elements, E = total edges
+  * @return Graph Object
+  */
  Graph Dataset::parseData() {
     using json = nlohmann::json;
+    auto roadData = json::parse(jsonData);
     Graph graph;
-    for (auto roadData = json::parse(jsonData); const auto& e : roadData["elements"]) {
-        //Within the json file, if the type is = to 'node', then it can be saved n parsed as a vertex object
+    //Within the json file, if the type is = to 'node', then it can be saved n parsed as a vertex object
+    for ( const auto& e : roadData["elements"]) {
         if (e["type"] == "node") {
             //gather id, latitude and longitude of the node.
             const long long nodeID = e["id"];
@@ -106,7 +112,9 @@ double haversine(const double lat1d, const double lon1d, const double lat2d, con
             const double lng = (e["lon"].get<double>());
             graph.addVertx(nodeID, lat, lng);
         }
-        //Within the json file, if the type is = to 'way', then it can be saved n parsed as an edge object
+    }
+    //Within the json file, if the type is = to 'way', then it can be saved n parsed as an edge object
+    for ( const auto& e : roadData["elements"]) {
         if (e["type"] == "way") {
             const long long edgeID= e["id"];
             const auto& t = e["tags"];
@@ -124,7 +132,7 @@ double haversine(const double lat1d, const double lon1d, const double lat2d, con
                 Vertex *destNode = graph.getVertex((u[i + 1].get<long long>()));
                 //calc distance between 2 nodes
                 const double dist = haversine(srcNode->getLat(), srcNode->getLon(), destNode->getLat(), destNode->getLon());
-                graph.addEdge(edgeID,srcNode,destNode,dist,speed,name);
+                graph.addEdge(edgeID,srcNode,destNode,dist,speed,std::move(name));
             }
         }
     }
@@ -136,6 +144,8 @@ double haversine(const double lat1d, const double lon1d, const double lat2d, con
  }
 /*
  * wrapped calls
+ *
+ * Time Complex : O(N)
  */
 Graph Dataset::buildGraph() {
     overseeAPI();

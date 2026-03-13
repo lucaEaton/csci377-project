@@ -42,7 +42,7 @@ Vertex* Graph::getVertex(long long id) const {
  * @param sL max speed of the street
  * @param sN street name
  */
-void Graph::addEdge(long long id, Vertex* src, Vertex* dst, double dist, double sL, std::string& sN) {
+void Graph::addEdge(long long id, Vertex* src, Vertex* dst, double dist, double sL, std::string sN) {
     if (!src || !dst) return; //don't add if they don't exist
 
     //unique pointer
@@ -58,6 +58,33 @@ void Graph::addEdge(long long id, Vertex* src, Vertex* dst, double dist, double 
 const std::unordered_map<long long, std::unique_ptr<Vertex>>& Graph::getVertices() const {
     return vertices_;
 }
+
+/*
+ * Demo - from textbook
+ *
+    for (int i = 1; i <= n; i++) {
+        distance[i] = INF;
+    }
+    distance[x] = 0;
+    q.push({0,x});
+    while (!q.empty()) {
+        int a = q.top().second; q.pop();
+        if (processed[a]) continue;
+        processed[a] = true;
+        for (auto u : adj[a]) {
+            int b = u.first, w = u.second;
+            if (distance[a]+w < distance[b]) {
+                distance[b] = distance[a]+w;
+                q.push({-distance[b],b});
+            }
+        }
+    }
+ *
+ */
+// int Graph::Dijkstra(Graph g){}
+
+
+
 
 /**
  * print function for debugging

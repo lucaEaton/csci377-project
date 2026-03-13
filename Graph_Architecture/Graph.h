@@ -21,7 +21,7 @@ public:
 
     [[nodiscard]] Vertex *getVertex(long long id) const;
 
-    void addEdge(long long id, Vertex* srcId, Vertex* dstId, double dist, double sL, std::string &sN);
+    void addEdge(long long id, Vertex* srcId, Vertex* dstId, double dist, double sL, std::string sN);
 
     const std::unordered_map<long long, std::unique_ptr<Vertex>> &getVertices() const;
 
