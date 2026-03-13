@@ -25,9 +25,9 @@ public:
 
     Vertex *getNeighbor(const Vertex *from) const;
 
-    Vertex *getSrc() const;
+    [[nodiscard]] Vertex *getSrc() const;
 
-    Vertex *getDst() const;
+    [[nodiscard]] Vertex *getDst() const;
 
     [[nodiscard]] string getStreetName() const;
 
@@ -35,7 +35,7 @@ public:
 
     [[nodiscard]] double getSpeedLimit() const;
 
-    double getWeight() const;
+    [[nodiscard]] double getWeight() const;
 
     Edge();
     Edge(long long id, Vertex* src, Vertex* dst, const double len, double limit, string name);

@@ -3,7 +3,7 @@
 //test
 int main(void) {
     Dataset dataset;
-    Graph graph = dataset.buildGraph();
+    const Graph graph = dataset.buildGraph();
 
     graph.print();
     return 0;

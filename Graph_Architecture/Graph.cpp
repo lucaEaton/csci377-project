@@ -7,6 +7,12 @@
 
 #include "Edge.h"
 #include "Vertex.h"
+
+Graph::Graph(const size_t vertexCount, const size_t edgeCount) {
+    vertices_.reserve(vertexCount);
+    edges_.reserve(edgeCount);
+}
+
 /**
  *
  * All data will be found when parsed through the data
@@ -16,9 +22,7 @@
  * @param lng longitude of vertex
  */
 void Graph::addVertx(long long id, double lat, double lng) {
-    if (const long long node_id = id; !vertices_.contains(node_id)) {
-        vertices_[node_id] = std::make_unique<Vertex>(id, lat, lng);
-    }
+    vertices_.try_emplace(id, std::make_unique<Vertex>(id, lat, lng));
 }
 /**
  *
@@ -42,11 +46,11 @@ Vertex* Graph::getVertex(long long id) const {
  * @param sL max speed of the street
  * @param sN street name
  */
-void Graph::addEdge(long long id, Vertex* src, Vertex* dst, double dist, double sL, std::string& sN) {
+void Graph::addEdge(long long id, Vertex* src, Vertex* dst, double dist, double sL, std::string sN) {
     if (!src || !dst) return; //don't add if they don't exist
 
     //unique pointer
-    auto e = std::make_unique<Edge>(id, src, dst, dist, sL, sN);
+    auto e = std::make_unique<Edge>(id, src, dst, dist, sL, std::move(sN));
     Edge* rAddress = e.get();
     src->addEdge(rAddress), dst->addEdge(rAddress); // register the same edge
     edges_.push_back(std::move(e)); // transfer ownership so the edge object lives on.
@@ -58,6 +62,33 @@ void Graph::addEdge(long long id, Vertex* src, Vertex* dst, double dist, double 
 const std::unordered_map<long long, std::unique_ptr<Vertex>>& Graph::getVertices() const {
     return vertices_;
 }
+
+/*
+ * Demo - from textbook
+ *
+    for (int i = 1; i <= n; i++) {
+        distance[i] = INF;
+    }
+    distance[x] = 0;
+    q.push({0,x});
+    while (!q.empty()) {
+        int a = q.top().second; q.pop();
+        if (processed[a]) continue;
+        processed[a] = true;
+        for (auto u : adj[a]) {
+            int b = u.first, w = u.second;
+            if (distance[a]+w < distance[b]) {
+                distance[b] = distance[a]+w;
+                q.push({-distance[b],b});
+            }
+        }
+    }
+ *
+ */
+// int Graph::Dijkstra(Graph g){}
+
+
+
 
 /**
  * print function for debugging

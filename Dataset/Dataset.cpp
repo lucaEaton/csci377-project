@@ -93,12 +93,26 @@ double haversine(const double lat1d, const double lon1d, const double lat2d, con
                std::pow(std::sin(dlon / 2), 2);
     return 2 * r * std::asin(std::sqrt(a));
 }
-// parse data
+/**
+  * parsing through data whilist constructing the graph object
+  *
+  * Time Complex : O(N+E) - N = total elements, E = total edges
+  * @return Graph Object
+  */
  Graph Dataset::parseData() {
     using json = nlohmann::json;
-    Graph graph;
-    for (auto roadData = json::parse(jsonData); const auto& e : roadData["elements"]) {
-        //Within the json file, if the type is = to 'node', then it can be saved n parsed as a vertex object
+    auto roadData = json::parse(jsonData);
+
+    //count instances seen in order to allocate memory.
+    size_t nodeCount = 0, wayNodeCount = 0;
+    for (const auto& e : roadData["elements"]) {
+        if (e["type"] == "node") nodeCount++;
+        if (e["type"] == "way") wayNodeCount += e["nodes"].size() - 1;
+    }
+    Graph graph(nodeCount, wayNodeCount);    //create graph object with allocated memory
+
+    //within the json file, if the type is = to 'node', then it can be saved n parsed as a vertex object
+    for ( const auto& e : roadData["elements"]) {
         if (e["type"] == "node") {
             //gather id, latitude and longitude of the node.
             const long long nodeID = e["id"];
@@ -106,11 +120,14 @@ double haversine(const double lat1d, const double lon1d, const double lat2d, con
             const double lng = (e["lon"].get<double>());
             graph.addVertx(nodeID, lat, lng);
         }
-        //Within the json file, if the type is = to 'way', then it can be saved n parsed as an edge object
+    }
+
+    //within the json file, if the type is = to 'way', then it can be saved n parsed as an edge object
+    for ( const auto& e : roadData["elements"]) {
         if (e["type"] == "way") {
             const long long edgeID= e["id"];
             const auto& t = e["tags"];
-            string name = t["name"];
+            const string name = t.value("name", "unknown"); //catch incase name tag is missing
             //For some reason the maxspeed or speed limit isn't displayed, but I assume if it's not listed, its 25 according to nyc law.
             double speed = 25;
             if (t.contains("maxspeed")) speed = std::stod(t["maxspeed"].get<std::string>());
@@ -128,6 +145,7 @@ double haversine(const double lat1d, const double lon1d, const double lat2d, con
             }
         }
     }
+
     //clear memory of the json file
     jsonData.clear();
     jsonData.shrink_to_fit();
@@ -136,6 +154,8 @@ double haversine(const double lat1d, const double lon1d, const double lat2d, con
  }
 /*
  * wrapped calls
+ *
+ * Time Complex : O(N)
  */
 Graph Dataset::buildGraph() {
     overseeAPI();
