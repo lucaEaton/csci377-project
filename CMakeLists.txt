@@ -9,7 +9,7 @@ find_package(nlohmann_json REQUIRED)
 
 add_executable(
         traffic_light_system
-        main.cpp
+        test.cpp
         Graph_Architecture/Edge.cpp
         Graph_Architecture/Edge.h
         Dataset/Dataset.cpp

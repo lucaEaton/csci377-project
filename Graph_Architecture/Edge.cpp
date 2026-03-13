@@ -10,9 +10,9 @@ using namespace std;
  * constructor
  */
 // NOTES - you can define two constructors and overload them. One default and one parameter
-Edge::Edge() : streetName_(""), distance_(0.0), speedLimit_(0.0), weight_(0.0), srcNode_(nullptr), dstNode_(nullptr) {}
-Edge::Edge(Vertex* src, Vertex* dst, double len, double limit, string name)
-    : streetName_(move(name)), distance_(len), speedLimit_(limit), srcNode_(src), dstNode_(dst) {
+Edge::Edge() : id_(0ll), streetName_(""), distance_(0.0), speedLimit_(0.0), weight_(0.0), srcNode_(nullptr), dstNode_(nullptr) {}
+Edge::Edge(const long long id, Vertex* src, Vertex* dst, const double len, const double limit, string name)
+    : id_(id), streetName_(move(name)), distance_(len), speedLimit_(limit), srcNode_(src), dstNode_(dst) {
     weight_ = calcWeight();
 }
 // add getters and setters for your edge class
@@ -26,7 +26,6 @@ Edge::Edge(Vertex* src, Vertex* dst, double len, double limit, string name)
  *
  * @return weight of the edge
  */
-
 double Edge::calcWeight() const {
     const double s = max(speedLimit_, 1.0);
     return distance_ / s;
@@ -67,6 +66,13 @@ double Edge::getDistance() const {
  */
 double Edge::getSpeedLimit() const {
     return speedLimit_;
+}
+/**
+ *
+ * @return edge weight
+ */
+double Edge::getWeight() const {
+    return weight_;
 }
 
 

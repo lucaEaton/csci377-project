@@ -11,6 +11,7 @@ using namespace std;
 class Vertex;
 class Edge {
 private:
+    long long id_;
     string streetName_;
     double distance_;
     double speedLimit_;
@@ -34,8 +35,10 @@ public:
 
     [[nodiscard]] double getSpeedLimit() const;
 
+    double getWeight() const;
+
     Edge();
-    Edge(Vertex* src, Vertex* dst, const double len, double limit, string name);
+    Edge(long long id, Vertex* src, Vertex* dst, const double len, double limit, string name);
 };
 
 #endif //EDGE_H

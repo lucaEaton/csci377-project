@@ -7,10 +7,10 @@
 #include <unordered_map>
 #include <vector>
 #include <memory>
-
+#include "Vertex.h"
+#include "Edge.h"
 using namespace std;
-class Vertex;
-class Edge;
+
 class Graph {
 private:
     unordered_map<long long, std::unique_ptr<Vertex>> vertices_;
@@ -19,11 +19,13 @@ private:
 public:
     void addVertx(long long id, double lat, double lng);
 
-    Vertex *getVertex(long long id) const;
+    [[nodiscard]] Vertex *getVertex(long long id) const;
 
-    void addEdge(long long srcId, long long dstId, double dist, double sL, std::string &sN);
+    void addEdge(long long id, Vertex* srcId, Vertex* dstId, double dist, double sL, std::string &sN);
 
     const std::unordered_map<long long, std::unique_ptr<Vertex>> &getVertices() const;
+
+    void print() const;
 };
 
 //NOTES

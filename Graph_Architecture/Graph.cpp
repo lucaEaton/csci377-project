@@ -2,6 +2,9 @@
 // Created by luca eaton on 3/11/26.
 
 #include "Graph.h"
+
+#include <iostream>
+
 #include "Edge.h"
 #include "Vertex.h"
 /**
@@ -39,13 +42,11 @@ Vertex* Graph::getVertex(long long id) const {
  * @param sL max speed of the street
  * @param sN street name
  */
-void Graph::addEdge(long long srcId, long long dstId, double dist, double sL, std::string& sN) {
-    Vertex* src = getVertex(srcId);
-    Vertex* dst = getVertex(dstId);
+void Graph::addEdge(long long id, Vertex* src, Vertex* dst, double dist, double sL, std::string& sN) {
     if (!src || !dst) return; //don't add if they don't exist
 
     //unique pointer
-    const auto e = std::make_unique<Edge>(src, dst, dist, sL, sN);
+    auto e = std::make_unique<Edge>(id, src, dst, dist, sL, sN);
     Edge* rAddress = e.get();
     src->addEdge(rAddress), dst->addEdge(rAddress); // register the same edge
     edges_.push_back(std::move(e)); // transfer ownership so the edge object lives on.
@@ -57,3 +58,21 @@ void Graph::addEdge(long long srcId, long long dstId, double dist, double sL, st
 const std::unordered_map<long long, std::unique_ptr<Vertex>>& Graph::getVertices() const {
     return vertices_;
 }
+
+/**
+ * print function for debugging
+ */
+void Graph::print() const {
+    for (const auto& [id, vertex] : vertices_) {
+        std::cout << "Vertex " << id << " (" << vertex->getLat() << ", " << vertex->getLon() << ")\n";
+        for (const Edge* e : vertex->getEdges()) {
+            const Vertex* neighbor = e->getNeighbor(vertex.get());
+            std::cout << "  → " << neighbor->getId()
+                      << " | " << e->getStreetName()
+                      << " | dist: " << e->getDistance()
+                      << " | weight: " << e->getWeight() << "\n";
+        }
+    }
+}
+
+

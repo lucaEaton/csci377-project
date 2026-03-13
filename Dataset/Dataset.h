@@ -5,6 +5,7 @@
 #ifndef DATASET_H
 #define DATASET_H
 #include <string>
+#include "../Graph_Architecture/Graph.h"
 using namespace std;
 
 
@@ -13,7 +14,9 @@ class Dataset {
     public:
         static size_t WriteCallback(void *contents, size_t size, size_t nmemb, void *userp);
         void overseeAPI();
-        void buildGraph();
+        Graph parseData();
+
+    Graph buildGraph();
 };
 
 
