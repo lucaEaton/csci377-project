@@ -12,20 +12,39 @@ Graph::Graph(const size_t vertexCount, const size_t edgeCount) {
     vertices_.reserve(vertexCount);
     edges_.reserve(edgeCount);
 }
-
 /**
- *
- * All data will be found when parsed through the data
+ * @note
+ * Adds a vertex to the map for later look up for vertex ids
  *
  * @param id the id of the vertex
  * @param lat latitude of vertex
  * @param lng longitude of vertex
+ *
+ * @timecomplex O(1)
+ * @spacecomplex O(V),V stands for # of nodes
  */
 void Graph::addVertx(long long id, double lat, double lng) {
     vertices_.try_emplace(id, std::make_unique<Vertex>(id, lat, lng));
 }
 /**
+ * @note
+ * Adds a street name to the map for later look up for edge ids
  *
+ * @relates Graph::streetMap_
+ * @param id id of edge
+ * @param street street name
+ *
+ * @timecomplex O(1)
+ * @spacecomplex O(E), E stands for # of edges
+ */
+void Graph::addStreet(long long id, std::string street) {
+    streetMap_[std::move(street)].push_back(id);
+}
+/**
+ * @note
+ * Looks within the vertices map to find the vertex associated with the id
+ *
+ * @relates Graph::vertices_
  * @param id id of the wanted Vertex
  * @return vertex object from the unordered_map
  */
@@ -34,14 +53,16 @@ Vertex* Graph::getVertex(long long id) const {
     return (it != vertices_.end()) ? it->second.get() : nullptr;
 }
 /**
- *
+ * @note
  * Adds an Edge to the Edge list towards the source and destination node
  * Gathers the ids and retrieves the nodes and check if they exist
  * Create the unique ptr object of the edge and add it to the individual edge list to each node
  * Shift the ownership to the Graph Object.
  *
- * @param srcId source id node
- * @param dstId destination id node
+ * @relates Graph::edges_
+ * @param id edge id
+ * @param src source vertex
+ * @param dst destination vertex
  * @param dist distance of the street
  * @param sL max speed of the street
  * @param sN street name
@@ -53,45 +74,82 @@ void Graph::addEdge(long long id, Vertex* src, Vertex* dst, double dist, double 
     auto e = std::make_unique<Edge>(id, src, dst, dist, sL, std::move(sN));
     Edge* rAddress = e.get();
     src->addEdge(rAddress), dst->addEdge(rAddress); // register the same edge
-    edges_.push_back(std::move(e)); // transfer ownership so the edge object lives on.
+    edges_[id] = (std::move(e)); // transfer ownership so the edge object lives on.
 }
 /**
+ * @note
+ * Within the Graph class we store two things
+ * an unordered map of names to street to their vector of ids (since there are multiple edges that are on the same street)
+ * and an unordered map of ids to the edge object itself
  *
- * @return a loop up map for all vertices
+ * my theory is if we have a list of all the possible street names then we can get its edge object simply from its name
+ * by looking up the name through our street map then the id of that output in our edge map
+ *
+ * Through this we can successfully find the Edge object through the name of the street
+ *
+ * @relates Graph::streetMap_
+ * @relates Graph::edges_
+ * @param name name of streets
+ * @return the edge object of that street
+ *
+ * @timecomplex O(1)
+ */
+Edge* Graph::nameToEdge(const string &name) const {
+    const long long id = streetMap_.find(name)->second[0];
+    return edges_.find(id)->second.get();
+}
+/**
+ * @note
+ * Look up map for all existing vertices
+ *
+ * @relates Graph::vertices_
+ * @return an unordered_map of ids to vertex
+ *
+ * @spacecomplex O(V) # of vertices
  */
 const std::unordered_map<long long, std::unique_ptr<Vertex>>& Graph::getVertices() const {
     return vertices_;
 }
 
-/*
- * Demo - from textbook
- *
-    for (int i = 1; i <= n; i++) {
-        distance[i] = INF;
-    }
-    distance[x] = 0;
-    q.push({0,x});
-    while (!q.empty()) {
-        int a = q.top().second; q.pop();
-        if (processed[a]) continue;
-        processed[a] = true;
-        for (auto u : adj[a]) {
-            int b = u.first, w = u.second;
-            if (distance[a]+w < distance[b]) {
-                distance[b] = distance[a]+w;
-                q.push({-distance[b],b});
+int Graph::Dijkstra(const Edge &streetA, const Edge &streetB) {
+    unordered_map<long long, bool> vst; // visited list
+    unordered_map<long long, int> dist; // distance list (cost)
+    Vertex* src = streetA.getSrc();
+    Vertex* target = streetB.getDst();
+    priority_queue<pair<int, long long>, std::greater<>> pq;
+    dist[src->getId()] = 0;
+    pq.push({0, src});
+    while (!pq.empty()) {
+        Vertex* current = pq.top().second;
+        pq.pop();
+        if (vst.contains(current->getId())) continue;
+        vst[current->getId()] = true;
+        for (auto u : current->getEdges()) {
+            auto b = u->getNeighbor(current); // target node of curr edge
+            auto w = u->getWeight(); // weight of our egde
+            if (dist[current->getId()] + w < dist[b->getId()]) {
+                dist[b->getId()] = dist[current->getId()] + w;
+                pq.push({dist[b->getId()], b->getId()});
             }
         }
     }
- *
- */
-// int Graph::Dijkstra(Graph g){}
-
+    return dist[target->getId()];
+}
 
 
 
 /**
- * print function for debugging
+ * @note
+ * The size of the graph aka the amount of nodes within it
+ *
+ * @return # of nodes
+ */
+size_t Graph::size() const {
+    return vertices_.size();
+}
+/**
+ * @note
+ * A print function in order to better visualize what vertex points to what
  */
 void Graph::print() const {
     for (const auto& [id, vertex] : vertices_) {

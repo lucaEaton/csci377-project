@@ -17,16 +17,11 @@ private:
 public:
     Vertex();
     Vertex(long long i, double la, double lo);
-
     void addEdge(Edge *edge);
-
-    const std::vector<Edge *> &getEdges() const;
-
-    size_t getId() const;
-
-    double getLat() const;
-
-    double getLon() const;
+    [[nodiscard]] const std::vector<Edge *> &getEdges() const;
+    [[nodiscard]] size_t getId() const;
+    [[nodiscard]] double getLat() const;
+    [[nodiscard]] double getLon() const;
 };
 
 
