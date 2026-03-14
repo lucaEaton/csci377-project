@@ -1,6 +1,3 @@
-//
-// Created by luca eaton on 3/11/26.
-//
 #include "Dataset.h"
 #include <iostream>
 #include <string>
@@ -9,6 +6,7 @@
 #include "../Graph_Architecture/Graph.h"
 #include "../Graph_Architecture/Vertex.h"
 /**
+ * @note
  * Sourced from StackOverflow, will allow me to store the JSON data within a string, to further than parse through the data.
  * O(N) Space complexity.
  *
@@ -48,8 +46,8 @@ size_t Dataset::WriteCallback(void* contents, size_t size, size_t nmemb, void* u
  * a temporary string. After the request finishes, the data is saved
  * into the class's private variable `jsonData`.
  *
- * Time Complex : O(N) n = size of res
- * Space Complex : O(N) due to storing the response within a string 'jsonData'.
+ * @timecomplex O(N) n = size of res
+ * @spacecomplex O(N) due to storing the response within a string 'jsonData'.
  */
 void Dataset::overseeAPI() {
     CURL *curl = curl_easy_init();
@@ -74,6 +72,7 @@ void Dataset::overseeAPI() {
     //std::cout << jsonData << std::endl; // testing to see if its saved
 }
 /*
+ * @note
  * Done to find the distance between points(lat n long) using the Haversine function
  * due to the oversees api not providing the distance
  *
@@ -94,22 +93,89 @@ double haversine(const double lat1d, const double lon1d, const double lat2d, con
     return 2 * r * std::asin(std::sqrt(a));
 }
 /**
-  * parsing through data whilist constructing the graph object
-  *
-  * Time Complex : O(N+E) - N = total elements, E = total edges
-  * @return Graph Object
-  */
+ * @note
+ * pares though the json date provided by @see Dataset::overseeAPI().
+ * The expected input format is as follows:
+ * @code{.json}
+ * {
+ *   "elements": [
+ *     {
+ *       "type": "node",
+ *       "id": 42435710,
+ *       "lat": 40.7654396,
+ *       "lon": -73.9838209,
+ *       "tags": {
+ *         "highway": "traffic_signals",
+ *         "traffic_signals": "signal"
+ *       }
+ *     },
+ *     {
+ *       "type": "way",
+ *       "id": 195743297,
+ *       "nodes": [ 42455643, 3998699938, 12427653344 ],
+ *       "tags": {
+ *         "highway": "primary",
+ *         "maxspeed": "25 mph",
+ *         "name": "10th Avenue",
+ *         "oneway": "yes"
+ *       }
+ *     }
+ *   ]
+ * }
+ * @endcode
+ *
+ * we loop through every array value within 'elements'
+ * we perform three separate runs through of this object
+ *
+ * @run1
+ * the first run is done in ordered to allocate specific memory for the graph itself
+ * every string value that holds the name 'node' (vertex) or 'way' (edge) we add to their respected counters
+ * we then take those values in order to persevere space for each data structure
+ * the cost without reserving is @timecompelx O(N log N) total copy operations across all reallocations
+ * with reserve, it's @timecomplex O(N) — each element written exactly once
+ * this is vital as wwe could have thousands of nodes
+ * @see lines 157-165
+ *
+ * @run2
+ * we are now hunting for our vertices, we cannot build our edges without them so its vital that we do so.
+ * in how our json file is formatted, it will put our nodes first to avoid this issue, however I'm not sure if
+ * that's always promised so avoiding that test case we perform this run anyway.
+ * if we can for certain know that it will always come first we are able to avoid this redundant for loop
+ * and combine @run2 and @run3
+ * @see lines 169-177
+ *
+ * @run3
+ * our final for loop will now target array objects with its type being 'way' so that we may build our edges
+ * we store variables that we will need in order to create our edge object
+ * our distance isn't provided with our json data, so utilizing the haversine formula to find the distance between
+ * two latitude and longitude points can give us an estimate of the distance of our street
+ * in test cases where our 'maxspeed' isn't provided, its known though if it isn't, its 25 mph
+ * All 'way' arrays hold a 'nodes' arrays so we loop over it in a makeshift sliding window,
+ * with ith node being the source vertex and the i+1th node being the destination vertex
+ * Add the edge objects to the edge map and street map
+ * @see 191-214
+ *
+ * @endruns
+ *
+ * Clear the jsonData in order to free up memory
+ *
+ * @relates Graph
+ * @timecomplex O(N+W+E) - N = total elements, W = ways (road segments), E = total edges
+ * @return Graph Object
+ */
  Graph Dataset::parseData() {
     using json = nlohmann::json;
     auto roadData = json::parse(jsonData);
 
     //count instances seen in order to allocate memory.
-    size_t nodeCount = 0, wayNodeCount = 0;
+    size_t nodeCount = 0, edgeCount = 0;
     for (const auto& e : roadData["elements"]) {
         if (e["type"] == "node") nodeCount++;
-        if (e["type"] == "way") wayNodeCount += e["nodes"].size() - 1;
+        if (e["type"] == "way") edgeCount += e["nodes"].size() - 1;
     }
-    Graph graph(nodeCount, wayNodeCount);    //create graph object with allocated memory
+    std::cout << "#nodes: " << nodeCount << std::endl;
+    std::cout << "#edges: " << edgeCount << std::endl;
+    Graph graph(nodeCount, edgeCount);    //create graph object with allocated memory
 
     //within the json file, if the type is = to 'node', then it can be saved n parsed as a vertex object
     for ( const auto& e : roadData["elements"]) {
@@ -129,10 +195,12 @@ double haversine(const double lat1d, const double lon1d, const double lat2d, con
             const auto& t = e["tags"];
             const string name = t.value("name", "unknown"); //catch incase name tag is missing
             //For some reason the maxspeed or speed limit isn't displayed, but I assume if it's not listed, its 25 according to nyc law.
-            double speed = 25;
-            if (t.contains("maxspeed")) speed = std::stod(t["maxspeed"].get<std::string>());
+            double speed = 25 * 1.60934;  // default 25mph to 40.23 km/h
+            if (t.contains("maxspeed")) speed = std::stod(t["maxspeed"].get<std::string>()) * 1.60934;
             const auto& u = e["nodes"];
             for (size_t i = 0; i+1<u.size(); ++i) {
+                const long long segmentID = edgeID * 100 + static_cast<long long>(i); // unique per segment
+
                 /*
                  * sliding window : gather nodes in pairs of 2 to create edges
                  * as a street may hold more than one node.
@@ -141,7 +209,9 @@ double haversine(const double lat1d, const double lon1d, const double lat2d, con
                 Vertex *destNode = graph.getVertex((u[i + 1].get<long long>()));
                 //calc distance between 2 nodes
                 const double dist = haversine(srcNode->getLat(), srcNode->getLon(), destNode->getLat(), destNode->getLon());
-                graph.addEdge(edgeID,srcNode,destNode,dist,speed,name);
+
+                graph.addStreet(segmentID,name);
+                graph.addEdge(segmentID,srcNode,destNode,dist,speed,name);
             }
         }
     }
@@ -149,13 +219,14 @@ double haversine(const double lat1d, const double lon1d, const double lat2d, con
     //clear memory of the json file
     jsonData.clear();
     jsonData.shrink_to_fit();
-    std::cout<< "loaded graph\n" << std::endl;
+    std::cout<< "successfully loaded\n" << std::endl;
     return graph;
  }
 /*
+ * @note
  * wrapped calls
  *
- * Time Complex : O(N)
+ * @timecomplex O(N)
  */
 Graph Dataset::buildGraph() {
     overseeAPI();
