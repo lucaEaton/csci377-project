@@ -139,7 +139,7 @@ double Graph::Dijkstra(const Edge &streetA, const Edge &streetB) const {
     if (dist[target->getId()] * 60 >= INT_MAX) {
         std::cout << "No path possibly between" << streetA.getStreetName() << " and " << streetB.getStreetName() << "." << std::endl;
     } else {
-        std::cout << "Travel time between "<< streetA.getStreetName() << " and " << streetB.getStreetName() << " : "<< dist[target->getId()] * 60 << " mins";
+        std::cout << "Shortest travel time between "<< streetA.getStreetName() << " and " << streetB.getStreetName() << " : "<< dist[target->getId()] * 60 << " mins";
     }
 
     return dist[target->getId()] * 60;
