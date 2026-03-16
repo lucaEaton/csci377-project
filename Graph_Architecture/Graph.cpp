@@ -122,8 +122,8 @@ double Graph::Dijkstra(const Edge &streetA, const Edge &streetB) const {
     dist[src->getId()] = 0;
     pq.push({0, src->getId()});
     while (!pq.empty()) {
-        long long currId = pq.top().second;
-        Vertex* current = getVertex(currId);
+        const long long currId = pq.top().second;
+        const Vertex* current = getVertex(currId);
         pq.pop();
         if (vst.contains(current->getId())) continue;
         vst[current->getId()] = true;
@@ -144,9 +144,6 @@ double Graph::Dijkstra(const Edge &streetA, const Edge &streetB) const {
 
     return dist[target->getId()] * 60;
 }
-
-
-
 /**
  * @note
  * The size of the graph aka the amount of nodes within it

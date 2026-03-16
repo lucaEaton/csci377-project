@@ -209,7 +209,6 @@ double haversine(const double lat1d, const double lon1d, const double lat2d, con
                 Vertex *destNode = graph.getVertex((u[i + 1].get<long long>()));
                 //calc distance between 2 nodes
                 const double dist = haversine(srcNode->getLat(), srcNode->getLon(), destNode->getLat(), destNode->getLon());
-
                 graph.addStreet(segmentID,name);
                 graph.addEdge(segmentID,srcNode,destNode,dist,speed,name);
             }
