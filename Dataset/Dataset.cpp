@@ -2,6 +2,7 @@
 #include <iostream>
 #include <string>
 #include <curl/curl.h>
+#include <chrono>
 #include <nlohmann/json.hpp>
 #include "../Graph_Architecture/Graph.h"
 #include "../Graph_Architecture/Vertex.h"
@@ -52,7 +53,7 @@ size_t Dataset::WriteCallback(void* contents, size_t size, size_t nmemb, void* u
 void Dataset::overseeAPI() {
     CURL *curl = curl_easy_init();
     //raw string query
-    const string q = R"([out:json][timeout:25];(way["highway"~"^(motorway|trunk|primary|secondary|tertiary|residential|unclassified|living_street)$"](around:300,40.7692,-73.9866);node(w););out body qt;)";
+    const string q = R"([out:json][timeout:99999];(way["highway"~"^(motorway|trunk|primary|secondary|tertiary|residential|unclassified|living_street)$"](around:1000,40.7692,-73.9866);node(w););out body qt;)";
     //storing the query for us to "point" curl back to it.
     const string data = "data=" + q;
     curl_easy_setopt(curl, CURLOPT_URL,  "https://overpass-api.de/api/interpreter"); //set domain
@@ -60,14 +61,17 @@ void Dataset::overseeAPI() {
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data.c_str()); //make query, create a c pointer to allow curl to be able to fully reread the query
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, Dataset::WriteCallback); // store json
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &jsonData); // stores json in std::string (jsonData);
-    //curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L); // debug usage
+    curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L); // debug usage
     //preform the act request
-    CURLcode res = curl_easy_perform(curl);
     //erase any allocated mem we had set to avoid any mem leaks
-    if (res != CURLE_OK) {
+    //std::cout << jsonData << std::endl;
+    if (const CURLcode res = curl_easy_perform(curl); res != CURLE_OK) {
         //debug
         std::cerr << "failed request -  " << curl_easy_strerror(res) << "\n";
     }
+    long http_code = 0;
+    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+    std::cout << "HTTP status: " << http_code << "\n";
     curl_easy_cleanup(curl);
     //std::cout << jsonData << std::endl; // testing to see if its saved
 }
@@ -92,6 +96,9 @@ double haversine(const double lat1d, const double lon1d, const double lat2d, con
                std::pow(std::sin(dlon / 2), 2);
     return 2 * r * std::asin(std::sqrt(a));
 }
+
+ostream operator<<(const ostream & lhs, const chrono::duration<long long, ratio<1, 1000>> & rhs);
+
 /**
  * @note
  * pares though the json date provided by @see Dataset::overseeAPI().
@@ -164,6 +171,7 @@ double haversine(const double lat1d, const double lon1d, const double lat2d, con
  * @return Graph Object
  */
  Graph Dataset::parseData() {
+    const auto t_start = std::chrono::high_resolution_clock::now();
     using json = nlohmann::json;
     auto roadData = json::parse(jsonData);
 
@@ -187,7 +195,13 @@ double haversine(const double lat1d, const double lon1d, const double lat2d, con
             graph.addVertx(nodeID, lat, lng);
         }
     }
-
+     const char* rawKey = std::getenv("TOMTOM_API_KEY");
+     if (!rawKey) {
+         std::cerr << "TOMTOM_API_KEY not set\n";
+         return graph;
+     }
+     std::string apiKey = rawKey;
+     CURL* curl = curl_easy_init();
     //within the json file, if the type is = to 'way', then it can be saved n parsed as an edge object
     for ( const auto& e : roadData["elements"]) {
         if (e["type"] == "way") {
@@ -196,29 +210,56 @@ double haversine(const double lat1d, const double lon1d, const double lat2d, con
             const string name = t.value("name", "unknown"); //catch incase name tag is missing
             //For some reason the maxspeed or speed limit isn't displayed, but I assume if it's not listed, its 25 according to nyc law.
             double speed = 25 * 1.60934;  // default 25mph to 40.23 km/h
+            double freeFlowSpeed = 0;
             if (t.contains("maxspeed")) speed = std::stod(t["maxspeed"].get<std::string>()) * 1.60934;
             const auto& u = e["nodes"];
             for (size_t i = 0; i+1<u.size(); ++i) {
                 const long long segmentID = edgeID * 100 + static_cast<long long>(i); // unique per segment
 
-                /*
-                 * sliding window : gather nodes in pairs of 2 to create edges
-                 * as a street may hold more than one node.
-                 */
                 Vertex *srcNode = graph.getVertex((u[i].get<long long>()));
                 Vertex *destNode = graph.getVertex((u[i + 1].get<long long>()));
+
+                double midLat = (srcNode->getLat() + destNode->getLat()) / 2.0;
+                double midLon = (srcNode->getLon() + destNode->getLon()) / 2.0;
+
+                auto url = std::format(
+                "https://api.tomtom.com/traffic/services/4/flowSegmentData/absolute/10/json?point={:.6f},{:.6f}&key={}",
+                midLat, midLon, apiKey);
+                std::string tom_tom_json;
+
+                curl_easy_reset(curl);
+                curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+                curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, Dataset::WriteCallback);
+                curl_easy_setopt(curl, CURLOPT_WRITEDATA, &tom_tom_json);
+               //curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
+                if (const CURLcode res = curl_easy_perform(curl); res == CURLE_OK) {
+                    // 3. actually parse and use the live speed
+                    try {
+                        auto trafficData = json::parse(tom_tom_json);
+                        freeFlowSpeed = trafficData["flowSegmentData"]["freeFlowSpeed"];
+                        speed = trafficData["flowSegmentData"]["currentSpeed"];
+                    } catch (...) {
+                        std::cerr << "failed to parse TomTom response for segment " << segmentID << "\n";
+                        std::cerr << "raw response: " << tom_tom_json.substr(0, 300) << "\n";
+                    }
+                } else {
+                    std::cerr << "curl failed: " << curl_easy_strerror(res) << "\n";
+                }
                 //calc distance between 2 nodes
                 const double dist = haversine(srcNode->getLat(), srcNode->getLon(), destNode->getLat(), destNode->getLon());
                 graph.addStreet(segmentID,name);
-                graph.addEdge(segmentID,srcNode,destNode,dist,speed,name);
+                graph.addEdge(segmentID,srcNode,destNode,dist,speed,name,freeFlowSpeed);
             }
         }
     }
 
     //clear memory of the json file
+    curl_easy_cleanup(curl);
     jsonData.clear();
     jsonData.shrink_to_fit();
-    std::cout<< "successfully loaded\n" << std::endl;
+    const auto t_end = std::chrono::high_resolution_clock::now();
+    const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_start);
+    std::cout<< "successfully loaded | time taken: " << duration << "\n" <<std::endl;
     return graph;
  }
 /*

@@ -7,23 +7,23 @@
 #include "Edge.h"
 
 class Graph {
-private:
-    unordered_map<long long, std::unique_ptr<Vertex>> vertices_;
-    unordered_map<string, vector<long long>> streetMap_;
-    unordered_map<long long, std::unique_ptr<Edge>> edges_;
+    public:
+        Graph(size_t vertexCount, size_t edgeCount);
+        void addVertx(long long id, double lat, double lng);
+        void addStreet(long long id, std::string street);
+        [[nodiscard]] Vertex *getVertex(long long id) const;
+        void addEdge(long long id, Vertex *src, Vertex *dst, double dist, double sL, std::string sN, double sF);
+        [[nodiscard]] Edge *nameToEdge(const string &name) const;
+        [[nodiscard]] const std::unordered_map<long long, std::unique_ptr<Vertex>> &getVertices() const;
 
-public:
-    Graph(size_t vertexCount, size_t edgeCount);
-    void addVertx(long long id, double lat, double lng);
-    void addStreet(long long id, std::string street);
-    [[nodiscard]] Vertex *getVertex(long long id) const;
-    void addEdge(long long id, Vertex* srcId, Vertex* dstId, double dist, double sL, std::string sN);
-    [[nodiscard]] Edge *nameToEdge(const string &name) const;
-    [[nodiscard]] const std::unordered_map<long long, std::unique_ptr<Vertex>> &getVertices() const;
+        double Dijkstra(const Edge &streetA, const Edge &streetB) const;
+        [[nodiscard]] size_t size() const;
+        void print() const;
 
-    double Dijkstra(const Edge &streetA, const Edge &streetB) const;
-    [[nodiscard]] size_t size() const;
-    void print() const;
+    private:
+        unordered_map<long long, std::unique_ptr<Vertex>> vertices_;
+        unordered_map<string, vector<long long>> streetMap_;
+        unordered_map<long long, std::unique_ptr<Edge>> edges_;
 };
 
 //NOTES

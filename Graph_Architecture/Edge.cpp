@@ -1,29 +1,40 @@
 #include "Edge.h"
 #include <utility>
 #include <algorithm>
+#include <iostream>
 using namespace std;
 /**
  * constructor
  */
 // NOTES - you can define two constructors and overload them. One default and one parameter
 Edge::Edge() : id_(0ll), streetName_(""), distance_(0.0), speedLimit_(0.0), weight_(0.0), srcNode_(nullptr), dstNode_(nullptr) {}
-Edge::Edge(const long long id, Vertex* src, Vertex* dst, const double len, const double limit, string name)
-    : id_(id), streetName_(move(name)), distance_(len), speedLimit_(limit), srcNode_(src), dstNode_(dst) {
+
+Edge::Edge(const long long id, Vertex* src, Vertex* dst, const double len, const double limit, string name, const double ffSpeed)
+    : id_(id), streetName_(move(name)), distance_(len), speedLimit_(limit), srcNode_(src), dstNode_(dst), ffSpeed_(ffSpeed) {
     weight_ = calcWeight();
 }
 /**
  * @note
- * Time is equal to Distance/Speed.
- * Time determines how long a road actual is, its weight.
+ * Travel time is equal to Distance / Speed, converted to minutes.
+ * This determines the cost (weight) of traversing an edge.
  *
- * Using this logic we can assume that weight will equal to W = (D/S)
- * Where D = Distance, S = Speed.
+ * W = (D / S) * 60
+ * Where D = Distance in km, S = Current speed in km/h (sourced from TomTom live traffic).
  *
- * @return weight of the edge
+ * Using live current speed rather than the static speed limit allows the weight
+ * to reflect real-time traffic conditions
+ *
+ * a road with heavy congestion will have a lower current speed,
+ * increasing its weight and making Dijkstra's
+ * algorithm prefer less congested routes.
+ *
+ * @return weight of the edge in minutes
  */
 double Edge::calcWeight() const {
-    const double s = max(speedLimit_, 1.0);
-    return distance_ / s;
+    const double s = max(speedLimit_, 1.0); // live speed
+    const double ff = max(ffSpeed_, 1.0); // free flow speed
+    //std::cout << "dist: " << distance_ << " speed: " << speedLimit_ << " weight: " << (distance_/speedLimit_)*60.0 << "\n";
+    return ((distance_ / ff) * 60.0) * ( ff / s); // base time * how contested the road is
 }
 /**
  * @note
