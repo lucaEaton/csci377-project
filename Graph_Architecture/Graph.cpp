@@ -1,5 +1,6 @@
 #include "Graph.h"
 #include <iostream>
+#include <chrono>
 #include "Edge.h"
 #include "Vertex.h"
 
@@ -64,14 +65,15 @@ Vertex* Graph::getVertex(long long id) const {
  * @param dist distance of the street
  * @param sL max speed of the street
  * @param sN street name
+ * @param sF
  *
  * @timecomplex O(1)
  */
-void Graph::addEdge(long long id, Vertex* src, Vertex* dst, double dist, double sL, std::string sN) {
+void Graph::addEdge(long long id, Vertex* src, Vertex* dst, double dist, double sL, std::string sN, double sF) {
     if (!src || !dst) return; //don't add if they don't exist
 
     //unique pointer
-    auto e = std::make_unique<Edge>(id, src, dst, dist, sL, std::move(sN));
+    auto e = std::make_unique<Edge>(id, src, dst, dist, sL, std::move(sN), sF);
     Edge* rAddress = e.get();
     src->addEdge(rAddress), dst->addEdge(rAddress); // register the same edge
     edges_[id] = (std::move(e)); // transfer ownership so the edge object lives on.
@@ -99,6 +101,15 @@ Edge* Graph::nameToEdge(const string &name) const {
     return edges_.find(id)->second.get();
 }
 /**
+ *
+ * @param id id of edge wanted
+ * @return the edge object
+ */
+Edge* Graph::getEdge(const long long id) const {
+    const auto it = edges_.find(id);
+    return (it != edges_.end()) ? it->second.get() : nullptr;
+}
+/**
  * @note
  * Look up map for all existing vertices
  *
@@ -110,8 +121,12 @@ Edge* Graph::nameToEdge(const string &name) const {
 const std::unordered_map<long long, std::unique_ptr<Vertex>>& Graph::getVertices() const {
     return vertices_;
 }
+
+ostream operator<<(const ostream & lhs, const chrono::duration<long long, ratio<1, 1000>> & rhs);
+
 // as of rn returns how long it would take in mins
 double Graph::Dijkstra(const Edge &streetA, const Edge &streetB) const {
+    const auto t_start = std::chrono::high_resolution_clock::now();
     unordered_map<long long, bool> vst; // visited list
     unordered_map<long long, double> dist; // distance list (cost)
     // set all indexes to INF
@@ -136,13 +151,16 @@ double Graph::Dijkstra(const Edge &streetA, const Edge &streetB) const {
             }
         }
     }
+    const auto t_end = std::chrono::high_resolution_clock::now();
+    const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_start);
     if (dist[target->getId()] * 60 >= INT_MAX) {
         std::cout << "No path possibly between" << streetA.getStreetName() << " and " << streetB.getStreetName() << "." << std::endl;
     } else {
-        std::cout << "Shortest travel time between "<< streetA.getStreetName() << " and " << streetB.getStreetName() << " : "<< dist[target->getId()] * 60 << " mins";
+        std::cout << "(Dijkstra) Shortest travel time between "<< streetA.getStreetName() << " and " << streetB.getStreetName() << " : "<< dist[target->getId()] << " mins\n";
+        std::cout <<"Time Taken :" << duration <<std::endl;
     }
 
-    return dist[target->getId()] * 60;
+    return dist[target->getId()];
 }
 /**
  * @note
@@ -165,9 +183,18 @@ void Graph::print() const {
             std::cout << "  → " << neighbor->getId()
                       << " | " << e->getStreetName()
                       << " | dist: " << e->getDistance()
-                      << " | weight: " << e->getWeight() << "\n";
+                      << " | weight: " << e->getWeight()
+                      << " | free flow speed: " << e->getFreeFlowS() << std::endl;
         }
     }
 }
+/**
+ *
+ * @return the id -> edge look up map
+ */
+const std::unordered_map<long long, std::unique_ptr<Edge>>& Graph::getEdges() const {
+    return edges_;
+}
+
 
 
