@@ -1,0 +1,88 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    display: flex;
+    height: 100vh;
+    font-family: 'Inter', sans-serif;
+}
+
+#map {
+    flex: 1;
+    height: 100vh;
+}
+
+.sidebar {
+    width: 320px;
+    height: 108.19vh;
+    background: #1a1a2e;
+    padding: 30px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    overflow-y: auto;
+}
+
+.main_title {
+    color: #e94560;
+    font-size: 28px;
+    font-weight: 700;
+}
+
+.subtitle {
+    color: #a8a8b3;
+    font-size: 14px;
+}
+
+.inputs {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.inputs input,
+.inputs select {
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #2a2a4a;
+    background: #16213e;
+    color: white;
+    font-size: 14px;
+    outline: none;
+}
+
+.inputs input:focus,
+.inputs select:focus {
+    border-color: #e94560;
+}
+
+.inputs input::placeholder {
+    color: #a8a8b3;
+}
+
+.inputs button {
+    padding: 12px;
+    border-radius: 8px;
+    border: none;
+    background: #e94560;
+    color: white;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.inputs button:hover {
+    background: #c73652;
+}
+
+.result {
+    background: #16213e;
+    border-radius: 8px;
+    padding: 16px;
+    color: #a8a8b3;
+    font-size: 14px;
+    line-height: 1.6;
+}

@@ -33,12 +33,6 @@ Edge::Edge(const long long id, Vertex* src, Vertex* dst, const double len, const
  */
 double Edge::calcWeight() const {
     const double s = max(speed_, 1.0); // live speed
-    if (ffSpeed_ > 0.0) {
-        const double ff = max(ffSpeed_, 1.0); // free flow speed
-        //std::cout << "dist: " << distance_ << " speed: " << speedLimit_ << " weight: " << (distance_/speedLimit_)*60.0 << "\n";
-        return ((distance_ / ff) * 60.0) * ( ff / s); // base time * how contested the road is
-    }
-
     return (distance_ / s) * 60;
 }
 /**

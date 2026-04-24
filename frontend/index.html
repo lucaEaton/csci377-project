@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Path-Wright</title>
+    <link rel="stylesheet" href="./index.css"/>
+</head>
+<body>
+<div class="sidebar">
+    <h1 class="main_title">pathwright</h1>
+    <p class="subtitle">traffic routing engine</p>
+    <div class="inputs">
+        <label for="streetA"></label><select id="streetA">
+            <option value="">select source street</option>
+        </select>
+        <label for="streetB"></label><select id="streetB">
+            <option value="">select target street</option>
+        </select>
+        <button id="find-button">find route</button>
+    </div>
+    <div class="result" id="result">
+        Enter two streets to find the fastest route.
+    </div>
+
+</div>
+<div id="map" style="height: 1100px; width: 50%;"></div>
+<script type="module" src="./map.js"></script>
+</body>
+</html>

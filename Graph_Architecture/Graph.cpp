@@ -1,6 +1,10 @@
 #include "Graph.h"
 #include <iostream>
 #include <chrono>
+#include <fstream>
+#include <unordered_set>
+
+#include "../utils.h"
 #include "Edge.h"
 #include "Vertex.h"
 
@@ -9,6 +13,7 @@ Graph::Graph(const size_t vertexCount, const size_t edgeCount) {
     edges_.reserve(edgeCount);
     streetMap_.reserve(edgeCount);
 }
+
 /**
  * @note
  * Adds a vertex to the map for later look up for vertex ids
@@ -23,6 +28,7 @@ Graph::Graph(const size_t vertexCount, const size_t edgeCount) {
 void Graph::addVertx(long long id, double lat, double lng) {
     vertices_.try_emplace(id, std::make_unique<Vertex>(id, lat, lng));
 }
+
 /**
  * @note
  * Adds a street name to the map for later look up for edge ids
@@ -37,6 +43,7 @@ void Graph::addVertx(long long id, double lat, double lng) {
 void Graph::addStreet(long long id, std::string street) {
     streetMap_[std::move(street)].push_back(id);
 }
+
 /**
  * @note
  * Looks within the vertices map to find the vertex associated with the id
@@ -47,10 +54,11 @@ void Graph::addStreet(long long id, std::string street) {
  *
  * @timecomplex O(1)
  */
-Vertex* Graph::getVertex(long long id) const {
+Vertex *Graph::getVertex(long long id) const {
     const auto it = vertices_.find(id);
     return (it != vertices_.end()) ? it->second.get() : nullptr;
 }
+
 /**
  * @note
  * Adds an Edge to the Edge list towards the source and destination node
@@ -69,46 +77,96 @@ Vertex* Graph::getVertex(long long id) const {
  *
  * @timecomplex O(1)
  */
-void Graph::addEdge(long long id, Vertex* src, Vertex* dst, double dist, double sL, std::string sN, double sF) {
+void Graph::addEdge(long long id, Vertex *src, Vertex *dst, double dist, double sL, std::string sN, double sF) {
     if (!src || !dst) return; //don't add if they don't exist
 
     //unique pointer
     auto e = std::make_unique<Edge>(id, src, dst, dist, sL, std::move(sN), sF);
-    Edge* rAddress = e.get();
+    Edge *rAddress = e.get();
     src->addEdge(rAddress), dst->addEdge(rAddress); // register the same edge
     edges_[id] = (std::move(e)); // transfer ownership so the edge object lives on.
 }
+
 /**
  * @note
- * Within the Graph class we store two things
- * an unordered map of names to street to their vector of ids (since there are multiple edges that are on the same street)
- * and an unordered map of ids to the edge object itself
- *
- * my theory is if we have a list of all the possible street names then we can get its edge object simply from its name
- * by looking up the name through our street map then the id of that output in our edge map
- *
- * Through this we can successfully find the Edge object through the name of the street
+ * Collects all vertex IDs associated with a given street name.
+ * Since a street is composed of multiple edge segments, each segment
+ * contributes both its source and destination vertex to the result set.
+ * This allows Dijkstra to treat the entire street as a valid start or
+ * end point rather than a single arbitrary segment.
  *
  * @relates Graph::streetMap_
  * @relates Graph::edges_
- * @param name name of streets
- * @return the edge object of that street
+ * @param name the street name to look up
+ * @return an unordered_set of vertex IDs belonging to that street,
+ *         or an empty set if the street is not found
  *
- * @timecomplex O(1)
+ * @timecomplex O(S), S = number of segments on the street
+ * @spacecomplex O(S), storing up to 2*S vertex IDs
  */
-Edge* Graph::nameToEdge(const string &name) const {
-    const long long id = streetMap_.find(name)->second[0];
-    return edges_.find(id)->second.get();
+unordered_set<long long> Graph::nameToVertices(const string &name) const {
+    unordered_set<long long> result;
+    const auto it = streetMap_.find(name);
+    if (it == streetMap_.end()) return result;
+    for (long long id: it->second) {
+        const auto eit = edges_.find(id);
+        if (eit == edges_.end()) continue; // if this edge id doesn't exist (it should) skip
+        result.insert(eit->second->getSrc()->getId());
+        result.insert(eit->second->getDst()->getId());
+    }
+    return result;
 }
+
+/**
+ * @note
+ * Finds the vertex within a set that is furthest away from a reference set of vertices.
+ * For each vertex in 'from', we calculate its minimum distance to any vertex in 'reference'
+ * (how close it is to the reference street). We then return whichever vertex in 'from'
+ * has the largest such minimum distance, meaning it is the furthest away from the reference street.
+ *
+ * This is used to find a realistic start/end point for routing between two streets.
+ * For example, given "11th Avenue" and "West 52nd Street", this function returns
+ * the vertex on 11th Avenue that is furthest from West 52nd Street, so that
+ * Dijkstra traverses the most realistic path between the two streets.
+ *
+ * @param from      set of vertex IDs to search through (all vertices on street A)
+ * @param reference set of vertex IDs to measure distance against (all vertices on street B)
+ * @return the vertex ID in 'from' that is furthest from 'reference', or -1 if 'from' is empty
+ *
+ * @timecomplex O(F * R), F = size of from, R = size of reference
+ * @spacecomplex O(1)
+ */
+long long Graph::findNode(const unordered_set<long long> &from, const unordered_set<long long> &reference) const {
+    long long best = -1;
+    double bestDist = -1;
+    for (const long long id: from) {
+        const Vertex *v = getVertex(id);
+        // find min distance to any vertex in reference set
+        double minToRef = numeric_limits<double>::infinity();
+        for (long long refId: reference) {
+            const Vertex *r = getVertex(refId);
+            double d = pow(v->getLat() - r->getLat(), 2) + pow(v->getLon() - r->getLon(), 2);
+            minToRef = min(minToRef, d);
+        }
+        // pick the source vertex that is furthest from the reference street
+        if (minToRef > bestDist) {
+            bestDist = minToRef;
+            best = id;
+        }
+    }
+    return best;
+}
+
 /**
  *
  * @param id id of edge wanted
  * @return the edge object
  */
-Edge* Graph::getEdge(const long long id) const {
+Edge *Graph::getEdge(const long long id) const {
     const auto it = edges_.find(id);
     return (it != edges_.end()) ? it->second.get() : nullptr;
 }
+
 /**
  * @note
  * Look up map for all existing vertices
@@ -118,50 +176,223 @@ Edge* Graph::getEdge(const long long id) const {
  *
  * @spacecomplex O(V) # of vertices
  */
-const std::unordered_map<long long, std::unique_ptr<Vertex>>& Graph::getVertices() const {
+const std::unordered_map<long long, std::unique_ptr<Vertex> > &Graph::getVertices() const {
     return vertices_;
 }
 
-ostream operator<<(const ostream & lhs, const chrono::duration<long long, ratio<1, 1000>> & rhs);
+ostream operator<<(const ostream &lhs, const chrono::duration<long long, ratio<1, 1000> > &rhs);
 
-// as of rn returns how long it would take in mins
-double Graph::Dijkstra(const Edge &streetA, const Edge &streetB) const {
+
+Graph::RouteResult Graph::Dijkstra(const string &nameA, const string &nameB) const {
     const auto t_start = std::chrono::high_resolution_clock::now();
-    unordered_map<long long, bool> vst; // visited list
+    unordered_set<long long> vst; // visited list
     unordered_map<long long, double> dist; // distance list (cost)
+    unordered_map<long long, long long> prev;
     // set all indexes to INF
-    for (const auto &id: getVertices() | views::keys) dist[id] = INT_MAX;
-    const Vertex* src = streetA.getSrc();
-    const Vertex* target = streetB.getDst();
-    priority_queue<pair<int, long long>, vector<pair<int, long long>>, std::greater<>> pq;
-    dist[src->getId()] = 0;
-    pq.push({0, src->getId()});
+    for (const auto &id: getVertices() | views::keys) dist[id] = std::numeric_limits<double>::infinity();
+
+    const auto sourcesA = nameToVertices(nameA);
+    const auto targetsB = nameToVertices(nameB);
+    if (sourcesA.empty() || targetsB.empty()) return {};
+
+    const long long src = findNode(sourcesA, targetsB);
+    const long long target = findNode(targetsB, sourcesA);
+    if (src < 0 || target < 0) return {};
+
+    priority_queue<pair<double, long long>, vector<pair<double, long long> >, std::greater<> > pq;
+    dist[src] = 0.0;
+    pq.emplace(0.0, src);
+
     while (!pq.empty()) {
         const long long currId = pq.top().second;
-        const Vertex* current = getVertex(currId);
         pq.pop();
-        if (vst.contains(current->getId())) continue;
-        vst[current->getId()] = true;
-        for (auto u : current->getEdges()) {
+        if (vst.contains(currId)) continue;
+        const Vertex *current = getVertex(currId);
+        vst.insert(currId);
+        for (auto u: current->getEdges()) {
             auto b = u->getNeighbor(current); // target node of curr edge
-            auto w = u->getWeight(); // weight of our egde
-            if (dist[current->getId()] + w < dist[b->getId()]) {
-                dist[b->getId()] = dist[current->getId()] + w;
-                pq.push({dist[b->getId()], b->getId()});
+            auto w = u->getWeight(); // weight of our edge
+            if (dist[currId] + w < dist[b->getId()]) {
+                dist[b->getId()] = dist[currId] + w;
+                prev[b->getId()] = currId; // record path
+                pq.emplace(dist[b->getId()], b->getId());
+            }
+        }
+    }
+
+    const auto t_end = std::chrono::high_resolution_clock::now();
+    const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_start);
+
+    const double best = dist[target];
+    if (best == std::numeric_limits<double>::infinity()) {
+        std::cout << "No path possibly between " << nameA << " and " << nameB << "." << std::endl;
+        return {};
+    }
+    std::cout << "\n(Dijkstra) Shortest travel time between " << nameA << " and " << nameB << " : "
+            << std::ceil(best) << " mins\n";
+    std::cout << "Time Taken :" << duration << std::endl;
+
+    // reconstruct path by walking back through prev
+    RouteResult result;
+    result.travelTime = std::ceil(best);
+    result.runTime = duration.count();
+    // start at the target and walk backwards through prev
+    // we stop once we hit the source node
+    for (long long cur = target; cur != src; cur = prev[cur]) {
+        const Vertex *v = getVertex(cur);
+        result.path.emplace_back(v->getLat(), v->getLon());
+    }
+    const Vertex *srcV = getVertex(src);
+    result.path.emplace_back(srcV->getLat(), srcV->getLon());
+    // reverse since its target -> src we want src -> target
+    ranges::reverse(result.path);
+
+    return result;
+}
+
+Graph::RouteResult Graph::Bellman_Ford(const string &nameA, const string &nameB) const {
+    const auto t_start = std::chrono::high_resolution_clock::now();
+    unordered_set<long long> vst;
+    unordered_map<long long, double> dist;
+    unordered_map<long long, long long> prev;
+
+    for (const auto &id: getVertices() | views::keys) dist[id] = std::numeric_limits<double>::infinity();
+
+    const auto sourcesA = nameToVertices(nameA);
+    const auto targetsB = nameToVertices(nameB);
+    if (sourcesA.empty() || targetsB.empty()) return {};
+
+    const long long src = findNode(sourcesA, targetsB);
+    const long long target = findNode(targetsB, sourcesA);
+    if (src < 0 || target < 0) return {};
+    dist[src] = 0.0;
+    for (int i = 1; i <getVertices().size(); i++) {
+        for (const auto &[id, v] : getVertices()) {
+            if (dist[id] == std::numeric_limits<double>::infinity()) continue;
+            for (const auto &u: v->getEdges()) {
+                const auto neighbor = u->getNeighbor(v.get());
+                if (const double w = u->getWeight(); dist[id] + w < dist[neighbor->getId()]) {
+                    dist[neighbor->getId()] = dist[id] + w;
+                    prev[neighbor->getId()] = id;
+                }
+            }
+        }
+    }
+
+    const auto t_end = std::chrono::high_resolution_clock::now();
+    const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_start);
+
+    const double best = dist[target];
+    if (best == std::numeric_limits<double>::infinity()) {
+        std::cout << "No path possibly between " << nameA << " and " << nameB << "." << std::endl;
+        return {};
+    }
+    std::cout << "\n(Bellman-Ford) Shortest travel time between " << nameA << " and " << nameB << " : "
+            << std::ceil(best) << " mins\n";
+    std::cout << "Time Taken :" << duration << std::endl;
+
+    // reconstruct path by walking back through prev
+    RouteResult result;
+    result.travelTime = std::ceil(best);
+    result.runTime = duration.count();
+    // start at the target and walk backwards through prev
+    // we stop once we hit the source node
+    for (long long cur = target; cur != src; cur = prev[cur]) {
+        const Vertex *v = getVertex(cur);
+        result.path.emplace_back(v->getLat(), v->getLon());
+    }
+    const Vertex *srcV = getVertex(src);
+    result.path.emplace_back(srcV->getLat(), srcV->getLon());
+    // reverse since its target -> src we want src -> target
+    ranges::reverse(result.path);
+
+    return result;
+}
+
+double Graph::heuristic(long long a, long long b) const {
+    const double dist_km = haversine(vertices_.at(a)->getLat(), vertices_.at(a)->getLon(),
+                                     vertices_.at(b)->getLat(), vertices_.at(b)->getLon());
+    // 120.7 because We divide by the fastest possible speed because the heuristic must
+    // never overestimate the true travel time.
+    // to get mim possible time between two points we need the distance and the
+    // highest speed of a road in this case 50mph -> 80.5 kmh
+    return (dist_km / 20.0) * 60.0;
+}
+
+Graph::RouteResult Graph::AStar(const string &nameA, const string &nameB) const {
+    const auto t_start = std::chrono::high_resolution_clock::now();
+    unordered_set<long long> vst;
+    unordered_map<long long, double> dist;
+    unordered_map<long long, long long> prev;
+    unordered_map<long long, double> g; // actual cost from src
+
+    for (const auto &id: getVertices() | views::keys) {
+        dist[id] = std::numeric_limits<double>::infinity();
+        g[id] = std::numeric_limits<double>::infinity();
+    }
+
+    const auto sourcesA = nameToVertices(nameA);
+    const auto targetsB = nameToVertices(nameB);
+    if (sourcesA.empty() || targetsB.empty()) return {};
+
+    const long long src = findNode(sourcesA, targetsB);
+    const long long target = findNode(targetsB, sourcesA);
+    if (src < 0 || target < 0) return {};
+
+    priority_queue<pair<double, long long>, vector<pair<double, long long> >, std::greater<> > pq;
+    g[src] = 0.0;
+    dist[src] = heuristic(src, target);
+    pq.emplace(dist[src], src);
+
+    while (!pq.empty()) {
+        const long long currId = pq.top().second;
+        pq.pop();
+        if (currId == target) break;
+        if (vst.contains(currId)) continue;
+        const Vertex *current = getVertex(currId);
+        vst.insert(currId);
+
+        for (auto u: current->getEdges()) {
+            auto b = u->getNeighbor(current);
+            auto w = u->getWeight();
+            if (g[currId] + w < g[b->getId()]) {
+                g[b->getId()] = g[currId] + w;
+                dist[b->getId()] = g[b->getId()] + heuristic(b->getId(), target);
+                prev[b->getId()] = currId;
+                pq.emplace(dist[b->getId()], b->getId());
             }
         }
     }
     const auto t_end = std::chrono::high_resolution_clock::now();
     const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_start);
-    if (dist[target->getId()] * 60 >= INT_MAX) {
-        std::cout << "No path possibly between" << streetA.getStreetName() << " and " << streetB.getStreetName() << "." << std::endl;
-    } else {
-        std::cout << "(Dijkstra) Shortest travel time between "<< streetA.getStreetName() << " and " << streetB.getStreetName() << " : "<< dist[target->getId()] << " mins\n";
-        std::cout <<"Time Taken :" << duration <<std::endl;
-    }
 
-    return dist[target->getId()];
+    const double best = dist[target];
+    if (best == std::numeric_limits<double>::infinity()) {
+        std::cout << "No path possibly between " << nameA << " and " << nameB << "." << std::endl;
+        return {};
+    }
+    std::cout << "\n(A*) Shortest travel time between " << nameA << " and " << nameB << " : "
+            << std::ceil(best) << " mins\n";
+    std::cout << "Time Taken :" << duration << std::endl;
+
+    // reconstruct path by walking back through prev
+    RouteResult result;
+    result.travelTime = std::ceil(best);
+    result.runTime = duration.count();
+    // start at the target and walk backwards through prev
+    // we stop once we hit the source node
+    for (long long cur = target; cur != src; cur = prev[cur]) {
+        const Vertex *v = getVertex(cur);
+        result.path.emplace_back(v->getLat(), v->getLon());
+    }
+    const Vertex *srcV = getVertex(src);
+    result.path.emplace_back(srcV->getLat(), srcV->getLon());
+    // reverse since its target -> src we want src -> target
+    ranges::reverse(result.path);
+
+    return result;
 }
+
 /**
  * @note
  * The size of the graph aka the amount of nodes within it
@@ -171,30 +402,30 @@ double Graph::Dijkstra(const Edge &streetA, const Edge &streetB) const {
 size_t Graph::size() const {
     return vertices_.size();
 }
+
 /**
  * @note
  * A print function in order to better visualize what vertex points to what
  */
 void Graph::print() const {
-    for (const auto& [id, vertex] : vertices_) {
+    for (const auto &[id, vertex]: vertices_) {
         std::cout << "Vertex " << id << " (" << vertex->getLat() << ", " << vertex->getLon() << ")\n";
-        for (const Edge* e : vertex->getEdges()) {
-            const Vertex* neighbor = e->getNeighbor(vertex.get());
+        for (const Edge *e: vertex->getEdges()) {
+            const Vertex *neighbor = e->getNeighbor(vertex.get());
             std::cout << "  → " << neighbor->getId()
-                      << " | " << e->getStreetName()
-                      << " | dist: " << e->getDistance()
-                      << " | weight: " << e->getWeight()
-                      << " | free flow speed: " << e->getFreeFlowS() << std::endl;
+                    << " | " << e->getStreetName()
+                    << " | dist: " << e->getDistance()
+                    << " | weight: " << e->getWeight()
+                    << " | free flow speed: " << e->getFreeFlowS()
+                    << " | speed : " << e->getSpeedLimit() << std::endl;
         }
     }
 }
+
 /**
  *
  * @return the id -> edge look up map
  */
-const std::unordered_map<long long, std::unique_ptr<Edge>>& Graph::getEdges() const {
+const std::unordered_map<long long, std::unique_ptr<Edge> > &Graph::getEdges() const {
     return edges_;
 }
-
-
-

@@ -3,28 +3,41 @@
 #include <unordered_map>
 #include <vector>
 #include <memory>
+#include <unordered_set>
+
 #include "Vertex.h"
 #include "Edge.h"
 
 class Graph {
     public:
+        struct RouteResult {
+            double travelTime = -1;
+            vector<pair<double,double>> path;
+            long long runTime;
+        };
+
         Graph(size_t vertexCount, size_t edgeCount);
         void addVertx(long long id, double lat, double lng);
         void addStreet(long long id, std::string street);
         [[nodiscard]] Vertex *getVertex(long long id) const;
         void addEdge(long long id, Vertex *src, Vertex *dst, double dist, double sL, std::string sN, double sF);
-        [[nodiscard]] Edge *nameToEdge(const string &name) const;
+        [[nodiscard]] unordered_set<long long> nameToVertices(const string &name) const;
+        [[nodiscard]] long long findNode(const unordered_set<long long> &from, const unordered_set<long long> &reference) const;
         [[nodiscard]] Edge *getEdge(long long id) const;
         [[nodiscard]] const std::unordered_map<long long, std::unique_ptr<Vertex>> &getVertices() const;
-        [[nodiscard]] double Dijkstra(const Edge &streetA, const Edge &streetB) const;
+        [[nodiscard]] RouteResult Dijkstra(const string &nameA, const string &nameB) const;
+        [[nodiscard]] RouteResult Bellman_Ford(const string &nameA, const string &nameB) const;
+        [[nodiscard]] double heuristic(long long a, long long b) const;
+        [[nodiscard]] RouteResult AStar(const string &nameA, const string &nameB) const;
         [[nodiscard]] size_t size() const;
         void print() const;
         [[nodiscard]] const unordered_map<long long, std::unique_ptr<Edge>>& getEdges() const;
-
     private:
         unordered_map<long long, std::unique_ptr<Vertex>> vertices_;
         unordered_map<string, vector<long long>> streetMap_;
         unordered_map<long long, std::unique_ptr<Edge>> edges_;
+
+
 };
 
 //NOTES
