@@ -56,7 +56,7 @@ void Dataset::overseeAPI() {
     CURL *curl = curl_easy_init();
     //raw string query
     const string q =
-            R"([out:json][timeout:60];(way["highway"~"^(motorway|trunk|primary|secondary|tertiary|residential|unclassified|living_street)$"](around:1000,40.7692,-73.9866);node(w););out body qt;)";
+            R"([out:json][timeout:60];(way["highway"~"^(motorway|trunk|primary|secondary|tertiary|residential|unclassified|living_street)$"](around:2000,40.7692,-73.9866);node(w););out body qt;)";
     //storing the query for us to "point" curl back to it.
     const string data = "data=" + q;
     curl_easy_setopt(curl, CURLOPT_URL, "https://overpass-api.de/api/interpreter"); //set domain

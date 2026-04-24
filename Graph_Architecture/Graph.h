@@ -13,6 +13,7 @@ class Graph {
         struct RouteResult {
             double travelTime = -1;
             vector<pair<double,double>> path;
+            long long runTime;
         };
 
         Graph(size_t vertexCount, size_t edgeCount);
@@ -25,11 +26,9 @@ class Graph {
         [[nodiscard]] Edge *getEdge(long long id) const;
         [[nodiscard]] const std::unordered_map<long long, std::unique_ptr<Vertex>> &getVertices() const;
         [[nodiscard]] RouteResult Dijkstra(const string &nameA, const string &nameB) const;
-
-        double heuristic(long long a, long long b) const;
-
-        RouteResult AStar(const string &nameA, const string &nameB) const;
-
+        [[nodiscard]] RouteResult Bellman_Ford(const string &nameA, const string &nameB) const;
+        [[nodiscard]] double heuristic(long long a, long long b) const;
+        [[nodiscard]] RouteResult AStar(const string &nameA, const string &nameB) const;
         [[nodiscard]] size_t size() const;
         void print() const;
         [[nodiscard]] const unordered_map<long long, std::unique_ptr<Edge>>& getEdges() const;

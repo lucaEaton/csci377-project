@@ -8,6 +8,7 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 
 let dijkstraLine = null;
 let aStarLine = null;
+let bellmanFordLine = null
 let overlapLine = null;
 let startMarker = null;
 let endMarker = null;
@@ -47,26 +48,33 @@ document.getElementById("find-button").addEventListener('click', () => {
     const sA = document.getElementById("streetA").value;
     const sB = document.getElementById("streetB").value;
     if (!sA || !sB) return;
-    document.getElementById("result").innerHTML = "";
+    document.getElementById("result").innerHTML = "running algorithms..";
 
     Promise.all([
         fetch(`http://localhost:8000/dijkstra?streeta=${encodeURIComponent(sA)}&streetb=${encodeURIComponent(sB)}`).then(r => r.json()),
-        fetch(`http://localhost:8000/aStar?streeta=${encodeURIComponent(sA)}&streetb=${encodeURIComponent(sB)}`).then(r => r.json())
-    ]).then(([dijkstra, aStar]) => {
+        fetch(`http://localhost:8000/aStar?streeta=${encodeURIComponent(sA)}&streetb=${encodeURIComponent(sB)}`).then(r => r.json()),
+        fetch(`http://localhost:8000/bellmanFord?streeta=${encodeURIComponent(sA)}&streetb=${encodeURIComponent(sB)}`).then(r => r.json())
+    ]).then(([dijkstra, aStar, bellmanFord]) => {
         document.getElementById("result").innerHTML =
             `<p>green dot represents src node, red represents target node</p>
              <p><br></p>
-             <p><strong>dijkstra</strong> (blue): ${dijkstra.travelTime} minutes | ${pathDistance(dijkstra.path)} miles</p>
-             <p><strong>a*</strong> (red): ${aStar.travelTime} minutes | ${pathDistance(aStar.path)} miles</p>
+             <p><strong>dijkstra</strong> (blue): <br>| ${dijkstra.travelTime} minutes <br>| ${pathDistance(dijkstra.path)} miles <br>| run time: ${dijkstra.runTime} ms</p>
+             <p><br></p>
+             <p><strong>a*</strong> (red): <br>| ${aStar.travelTime} minutes <br>| ${pathDistance(aStar.path)} miles <br>| run time: ${aStar.runTime} ms</p>
+             <p><br></p>
+             <p><strong>bellman-ford</strong> (green): <br>| ${bellmanFord.travelTime} minutes <br>| ${pathDistance(aStar.path)} miles <br>| run time: ${bellmanFord.runTime} ms</p>
+             <p><br></p>
              <p>(purple) = paths overlapping</p>`;
 
         // remove old lines
         if (dijkstraLine) map.removeLayer(dijkstraLine);
         if (aStarLine) map.removeLayer(aStarLine);
         if (overlapLine) map.removeLayer(overlapLine);
+        if(bellmanFordLine) map.removeLayer(bellmanFordLine)
 
         const dijkstraCoords = dijkstra.path.map(p => [p.lat, p.lon]);
         const aStarCoords = aStar.path.map(p => [p.lat, p.lon]);
+        const bellmanFordCoords = bellmanFord.path.map(p => [p.lat, p.lon]);
 
         // find overlapping segments by comparing node ids
         const dijkstraIds = new Set(dijkstra.path.map(p => p.id));
@@ -80,13 +88,14 @@ document.getElementById("find-button").addEventListener('click', () => {
         // draw dijkstra in blue, a* in red
         dijkstraLine = L.polyline(dijkstraCoords, { color: 'blue', weight: 7 }).addTo(map);
         aStarLine = L.polyline(aStarCoords, { color: 'red', weight: 7 }).addTo(map);
+        bellmanFordLine = L.polyline(bellmanFordCoords, {color: 'green', weight: 7}).addTo(map);
 
         // draw overlap in purple on top
         if (overlapCoords.length > 1) {
             //overlapLine = L.polyline(overlapCoords, { color: 'purple', weight: 7 }).addTo(map);
         }
 
-        const group = L.featureGroup([dijkstraLine, aStarLine]);
+        const group = L.featureGroup([dijkstraLine, aStarLine,bellmanFordLine]);
         map.fitBounds(group.getBounds());
 
         if (startMarker) map.removeLayer(startMarker);

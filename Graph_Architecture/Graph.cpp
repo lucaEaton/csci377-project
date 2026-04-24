@@ -235,6 +235,66 @@ Graph::RouteResult Graph::Dijkstra(const string &nameA, const string &nameB) con
     // reconstruct path by walking back through prev
     RouteResult result;
     result.travelTime = std::ceil(best);
+    result.runTime = duration.count();
+    // start at the target and walk backwards through prev
+    // we stop once we hit the source node
+    for (long long cur = target; cur != src; cur = prev[cur]) {
+        const Vertex *v = getVertex(cur);
+        result.path.emplace_back(v->getLat(), v->getLon());
+    }
+    const Vertex *srcV = getVertex(src);
+    result.path.emplace_back(srcV->getLat(), srcV->getLon());
+    // reverse since its target -> src we want src -> target
+    ranges::reverse(result.path);
+
+    return result;
+}
+
+Graph::RouteResult Graph::Bellman_Ford(const string &nameA, const string &nameB) const {
+    const auto t_start = std::chrono::high_resolution_clock::now();
+    unordered_set<long long> vst;
+    unordered_map<long long, double> dist;
+    unordered_map<long long, long long> prev;
+
+    for (const auto &id: getVertices() | views::keys) dist[id] = std::numeric_limits<double>::infinity();
+
+    const auto sourcesA = nameToVertices(nameA);
+    const auto targetsB = nameToVertices(nameB);
+    if (sourcesA.empty() || targetsB.empty()) return {};
+
+    const long long src = findNode(sourcesA, targetsB);
+    const long long target = findNode(targetsB, sourcesA);
+    if (src < 0 || target < 0) return {};
+    dist[src] = 0.0;
+    for (int i = 1; i <getVertices().size(); i++) {
+        for (const auto &[id, v] : getVertices()) {
+            if (dist[id] == std::numeric_limits<double>::infinity()) continue;
+            for (const auto &u: v->getEdges()) {
+                const auto neighbor = u->getNeighbor(v.get());
+                if (const double w = u->getWeight(); dist[id] + w < dist[neighbor->getId()]) {
+                    dist[neighbor->getId()] = dist[id] + w;
+                    prev[neighbor->getId()] = id;
+                }
+            }
+        }
+    }
+
+    const auto t_end = std::chrono::high_resolution_clock::now();
+    const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_start);
+
+    const double best = dist[target];
+    if (best == std::numeric_limits<double>::infinity()) {
+        std::cout << "No path possibly between " << nameA << " and " << nameB << "." << std::endl;
+        return {};
+    }
+    std::cout << "\n(Bellman-Ford) Shortest travel time between " << nameA << " and " << nameB << " : "
+            << std::ceil(best) << " mins\n";
+    std::cout << "Time Taken :" << duration << std::endl;
+
+    // reconstruct path by walking back through prev
+    RouteResult result;
+    result.travelTime = std::ceil(best);
+    result.runTime = duration.count();
     // start at the target and walk backwards through prev
     // we stop once we hit the source node
     for (long long cur = target; cur != src; cur = prev[cur]) {
@@ -318,6 +378,7 @@ Graph::RouteResult Graph::AStar(const string &nameA, const string &nameB) const 
     // reconstruct path by walking back through prev
     RouteResult result;
     result.travelTime = std::ceil(best);
+    result.runTime = duration.count();
     // start at the target and walk backwards through prev
     // we stop once we hit the source node
     for (long long cur = target; cur != src; cur = prev[cur]) {
