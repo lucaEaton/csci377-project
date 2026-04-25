@@ -10,7 +10,6 @@ find_package(Crow)
 
 add_executable(
         traffic_light_system
-        test.cpp
         Graph_Architecture/Edge.cpp
         Graph_Architecture/Edge.h
         Dataset/Dataset.cpp
